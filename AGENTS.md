@@ -72,6 +72,7 @@ Fill in these fields; remove inapplicable entries.
 - Install from committed lockfiles. Update manifests and lockfiles together through the package manager; never hand-edit lockfiles.
 - Add dependencies only for a concrete need.
 - Keep setup idempotent and separate from validation. Existing lifecycle automation calls repository-local entry points and does not regenerate lockfiles.
+- Pull request titles MUST follow the Conventional Commits specification.
 - Follow repository workflow. Do not bypass hooks or rules to evade failures.
 - Keep secrets, credentials, caches, build output, and local runtime state out of source control.
 
