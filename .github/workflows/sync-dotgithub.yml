@@ -1,0 +1,74 @@
+# /.github/workflows/sync-dotgithub.yml
+
+name: Sync .github
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/AGENTS.md
+      - .github/actions/AGENTS.md
+      - .github/workflows/AGENTS.md
+  workflow_dispatch:
+
+concurrency:
+  group: sync-dotgithub
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    name: Sync AGENTS rules
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          path: source
+
+      - name: Checkout target
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/.github
+          token: ${{ secrets.SYNC_DOTGITHUB_TOKEN }}
+          path: target
+
+      - name: Sync files
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.SYNC_DOTGITHUB_TOKEN }}
+          SOURCE_REPO: ${{ github.repository }}
+          TARGET_REPO: ${{ github.repository_owner }}/.github
+          SYNC_BRANCH: sync/agents
+        run: |
+          set -euo pipefail
+
+          install -D source/.github/AGENTS.md target/.github/AGENTS.md
+          install -D source/.github/workflows/AGENTS.md target/.github/workflows/AGENTS.md
+          install -D source/.github/actions/AGENTS.md target/.github/actions/AGENTS.md
+
+          cd target
+          git switch -C "$SYNC_BRANCH"
+          git add .github/AGENTS.md .github/workflows/AGENTS.md .github/actions/AGENTS.md
+
+          if git diff --cached --quiet; then
+            echo "Target is already synchronized."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore: sync AGENTS rules"
+          git push --force origin "$SYNC_BRANCH"
+
+          if [ "$(gh pr list --repo "$TARGET_REPO" --head "$SYNC_BRANCH" --state open --json number --jq 'length')" -eq 0 ]; then
+            gh pr create \
+              --repo "$TARGET_REPO" \
+              --base main \
+              --head "$SYNC_BRANCH" \
+              --title "chore: sync AGENTS rules" \
+              --body "Automated synchronization from `$SOURCE_REPO`."
+          fi
